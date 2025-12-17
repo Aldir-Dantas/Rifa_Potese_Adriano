@@ -178,7 +178,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // setLogLevel('Debug'); // Ativar logs de debug (opcional)
 
         // Variáveis de Configuração
         const WHATSAPP_NUMBER = "5511999999999"; // SUBSTITUA PELO SEU NÚMERO
@@ -194,9 +194,22 @@
         // Novo status prefixo para identificar e armazenar o nome/telefone
         const RESERVED_PREFIX = 'RESERVED|';
 
+        // --- MANUSEIO ROBUSTO DA CONFIGURAÇÃO DO FIREBASE ---
         // Variáveis globais do Firebase (fornecidas pelo ambiente)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        let firebaseConfig = null;
+        try {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config.trim() !== '') {
+                // Assume que é uma string JSON válida
+                firebaseConfig = JSON.parse(__firebase_config);
+            } else {
+                console.error("ERRO CRÍTICO: Variável __firebase_config está ausente ou vazia.");
+            }
+        } catch (e) {
+            console.error("ERRO CRÍTICO: Falha ao parsear JSON da configuração do Firebase. Valor recebido:", __firebase_config, "Erro:", e);
+        }
+
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
         
         // Elementos DOM
@@ -232,11 +245,9 @@
         // --- 1. FUNÇÕES DO FIREBASE ---
 
         async function initializeFirebase() {
+            // Se firebaseConfig for null após as checagens robustas, exibe a mensagem de erro.
             if (!firebaseConfig) {
-                // Log detalhado para o erro de configuração
-                console.error("Firebase config not available. Typeof __firebase_config:", typeof __firebase_config);
-                console.error("Value of __firebase_config:", typeof __firebase_config !== 'undefined' ? __firebase_config : 'undefined');
-                selectionStatus.textContent = "Erro: Configuração do App indisponível.";
+                selectionStatus.textContent = "Erro: Configuração do App indisponível (Tente recarregar).";
                 return;
             }
             
@@ -268,7 +279,7 @@
                     }
                 });
             } catch (error) {
-                console.error("Erro ao inicializar Firebase:", error);
+                console.error("Erro ao inicializar Firebase (initializeApp):", error);
                 selectionStatus.textContent = "Erro de conexão. Tente recarregar.";
             }
         }
@@ -758,4 +769,4 @@
         });
     </script>
 </body>
-</html>
+    </html>
