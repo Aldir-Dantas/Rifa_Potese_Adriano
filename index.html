@@ -143,6 +143,35 @@
         </section>
 
     </div>
+    
+    <!-- MODAL DE COLETA DE DADOS -->
+    <div id="contact-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all duration-300 scale-95 opacity-0" id="modal-content">
+            <h3 class="text-xl font-bold text-primary mb-4">Confirme a Reserva do Número</h3>
+            <p class="text-sm text-gray-700 mb-4">Para reservar o número, precisamos do seu nome e telefone (WhatsApp) para contato e confirmação do Pix.</p>
+            
+            <form id="reservation-form">
+                <div class="mb-4">
+                    <label for="user-name" class="block text-sm font-medium text-gray-700">Seu Nome Completo</label>
+                    <input type="text" id="user-name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" required>
+                </div>
+                <div class="mb-6">
+                    <label for="user-phone" class="block text-sm font-medium text-gray-700">Telefone/WhatsApp (Ex: 11998765432)</label>
+                    <input type="tel" id="user-phone" pattern="[0-9]{11,15}" title="Insira um telefone válido com DDD (apenas números)" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" required>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="cancel-reservation-btn" class="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150">
+                        Reservar Agora
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 
     <script type="module">
         // Importações do Firebase
@@ -152,7 +181,7 @@
         import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Variáveis de Configuração
-        const WHATSAPP_NUMBER = "5583996389776"; // SUBSTITUA PELO SEU NÚMERO
+        const WHATSAPP_NUMBER = "5511999999999"; // SUBSTITUA PELO SEU NÚMERO
         const TOTAL_NUMBERS = 100; // Número máximo de rifas (fixo)
         
         // Constantes do Firebase
@@ -161,6 +190,9 @@
         const TOTAL_PARTICIPATING_KEY = '_total_participating'; // Chave meta para o total de números ativos
         // ID de administrador (para liberar o painel) - Para o Aldir
         const ADMIN_USER_ID_KEY = 'admin_user_id';
+        
+        // Novo status prefixo para identificar e armazenar o nome/telefone
+        const RESERVED_PREFIX = 'RESERVED|';
 
         // Variáveis globais do Firebase (fornecidas pelo ambiente)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -178,20 +210,32 @@
         const noReservations = document.getElementById('no-reservations');
         const activeCountControl = document.getElementById('active-count-control');
 
+        // NOVOS ELEMENTOS DO MODAL
+        const contactModal = document.getElementById('contact-modal');
+        const modalContent = document.getElementById('modal-content');
+        const reservationForm = document.getElementById('reservation-form');
+        const userNameInput = document.getElementById('user-name');
+        const userPhoneInput = document.getElementById('user-phone');
+        const cancelReservationBtn = document.getElementById('cancel-reservation-btn');
+
+
         // Estado Local
         let db, auth;
         let userId = null;
         let isAdmin = false; // Flag de controle
         let isAuthReady = false;
-        let reservedNumbers = {}; // { '01': 'SOLD', '02': 'RESERVED_USER_XYZ' }
+        let reservedNumbers = {}; // { '01': 'SOLD', '02': 'RESERVED|ID|NOME|TEL' }
         let selectedNumbers = []; // Número selecionado pelo usuário atual
         let activeCount = TOTAL_NUMBERS; // Novo estado: total de números ativos/participantes
+        let currentNumberToReserve = null; // Estado para o número clicado
 
         // --- 1. FUNÇÕES DO FIREBASE ---
 
         async function initializeFirebase() {
             if (!firebaseConfig) {
-                console.error("Firebase config not available. Cannot initialize.");
+                // Log detalhado para o erro de configuração
+                console.error("Firebase config not available. Typeof __firebase_config:", typeof __firebase_config);
+                console.error("Value of __firebase_config:", typeof __firebase_config !== 'undefined' ? __firebase_config : 'undefined');
                 selectionStatus.textContent = "Erro: Configuração do App indisponível.";
                 return;
             }
@@ -349,19 +393,15 @@
                 const status = reservedNumbers[number] || 'AVAILABLE';
                 
                 let classes = 'number-btn bg-white text-gray-700 border border-gray-300 p-2 rounded-lg font-semibold transition duration-150';
-
+                let isReservedByCurrentUser = status.startsWith(RESERVED_PREFIX) && status.includes(`|${userId}|`);
+                
                 if (status === 'SOLD') {
                     classes += ' sold';
-                } else if (status.startsWith('RESERVED_')) {
-                    if (status.includes(userId)) {
-                        // Reservado pelo usuário atual
-                        classes += ' selected bg-primary text-white scale-110';
-                    } else {
-                        // Reservado por outro usuário
-                        classes += ' reserved';
-                    }
-                } else if (selectedNumbers.includes(number)) {
-                    // Número selecionado localmente (e no processo de reserva)
+                } else if (status.startsWith(RESERVED_PREFIX) && !isReservedByCurrentUser) {
+                    // Reservado por outro usuário (novo formato)
+                    classes += ' reserved';
+                } else if (isReservedByCurrentUser || selectedNumbers.includes(number)) {
+                    // Reservado ou selecionado pelo usuário atual
                     classes += ' selected bg-primary text-white scale-110';
                 } else {
                     classes += ' hover:bg-secondary/50 cursor-pointer';
@@ -371,6 +411,7 @@
             }
             numbersGrid.innerHTML = html;
             addNumberListeners();
+            updateUI();
         }
 
         function handleNumberClick(event) {
@@ -378,33 +419,21 @@
             const number = btn.dataset.number;
             const status = reservedNumbers[number] || 'AVAILABLE';
 
-            if (status !== 'AVAILABLE' && !status.includes(userId)) {
-                // Não permite clicar em vendido ou reservado por outro
+            // Verifica se está reservado por outro
+            if (status !== 'AVAILABLE' && !status.includes(`|${userId}|`)) {
                 selectionStatus.textContent = `Número ${number} está ${status === 'SOLD' ? 'VENDIDO' : 'RESERVADO'}. Escolha outro.`;
                 return;
             }
 
-            // Lógica de Seleção/Reserva
+            // Lógica de Desseleção
             if (selectedNumbers.includes(number)) {
                 // Desseleciona (e remove a reserva do Firestore)
                 selectedNumbers = [];
                 setNumberStatus(number, 'AVAILABLE');
             } else {
-                // O app permite apenas 1 número por vez.
-                // 1. Limpa seleção anterior (se houver) e libera reserva anterior
-                if (selectedNumbers.length > 0) {
-                    // Tenta liberar o número anterior reservado pelo usuário
-                    setNumberStatus(selectedNumbers[0], 'AVAILABLE');
-                }
-                
-                // 2. Seleciona novo número (localmente)
-                selectedNumbers = [number];
-                
-                // 3. Reserva no Firestore
-                setNumberStatus(number, `RESERVED_${userId}`);
+                // Se disponível, abre o modal para coletar nome/telefone
+                showContactModal(number);
             }
-            
-            updateUI(); // Atualiza o botão do WhatsApp
         }
 
         function updateUI() {
@@ -424,16 +453,30 @@
         }
 
         function buildWhatsAppMessage() {
-            let message = "Olá Aldir, acabei de fazer o Pix de R$ 20,00 para a rifa do Adriano.\n\n";
-            message += "Eu gostaria de reservar o número: ";
+            // Tenta obter os detalhes de contato do número selecionado para personalizar a mensagem
+            let contactName = 'Cliente';
+            let contactPhone = 'Não Informado';
+
+            if (selectedNumbers.length > 0) {
+                const number = selectedNumbers[0];
+                const status = reservedNumbers[number];
+                const details = parseReservedStatus(status);
+                if (details) {
+                    contactName = details.name;
+                    contactPhone = details.phone;
+                }
+            }
+            
+            let message = `Olá Aldir, eu sou o(a) ${contactName} (${contactPhone}). Acabei de fazer o Pix de R$ 20,00 para a rifa do Adriano.\n\n`;
+            message += "Eu gostaria de confirmar o número: ";
             
             if (selectedNumbers.length > 0) {
                 message += selectedNumbers.join(', ');
             } else {
-                message += "(Nenhum número selecionado, por favor, me atribua um disponível)";
+                message += "(Nenhum número reservado no momento)";
             }
             
-            message += `\n\nEnviei o comprovante. (Meu ID: ${userId}). Aguardo a confirmação! 😊`;
+            message += `\n\nEnviei o comprovante. Aguardo a confirmação! 😊`;
             return message;
         }
 
@@ -444,7 +487,117 @@
             });
         }
         
-        // --- 3. LÓGICA DE ADMINISTRAÇÃO ---
+        // --- 3. LÓGICA DO MODAL ---
+        
+        function showContactModal(number) {
+            currentNumberToReserve = number;
+            
+            const title = modalContent.querySelector('h3');
+            if (title) {
+                title.textContent = `Confirme a Reserva do Número #${number}`;
+            }
+
+            // Pre-preenche se o usuário já tiver reservado algo antes
+            if (selectedNumbers.length > 0) {
+                 const details = parseReservedStatus(reservedNumbers[selectedNumbers[0]]);
+                 if(details) {
+                     userNameInput.value = details.name;
+                     userPhoneInput.value = details.phone;
+                 }
+            } else {
+                // Limpa o formulário se for a primeira vez
+                reservationForm.reset();
+            }
+
+            contactModal.classList.remove('hidden');
+            // Animação de entrada
+            setTimeout(() => {
+                modalContent.classList.remove('scale-95', 'opacity-0');
+                modalContent.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            userNameInput.focus();
+        }
+
+        function hideContactModal() {
+            // Animação de saída
+            modalContent.classList.remove('scale-100', 'opacity-100');
+            modalContent.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                contactModal.classList.add('hidden');
+                currentNumberToReserve = null;
+                // Não reseta o formulário aqui, pois podemos querer usar os dados para o próximo número
+            }, 300); // Tempo da transição CSS
+        }
+
+        async function handleReservationSubmit(e) {
+            e.preventDefault();
+            
+            const number = currentNumberToReserve;
+            const name = userNameInput.value.trim();
+            // Remove espaços, traços, etc., deixando apenas números
+            const phone = userPhoneInput.value.replace(/\D/g, '').trim(); 
+            
+            if (!number || !name || phone.length < 10) {
+                selectionStatus.textContent = "Erro: Por favor, preencha o nome e um telefone válido com DDD.";
+                return;
+            }
+
+            // 1. Monta o novo status com as informações do cliente
+            // Formato: RESERVED|USER_ID|NOME_URL_ENCODED|TELEFONE
+            const encodedName = encodeURIComponent(name);
+            const newStatus = `${RESERVED_PREFIX}${userId}|${encodedName}|${phone}`;
+
+            // 2. Limpa seleção anterior (se houver) e libera reserva anterior
+            if (selectedNumbers.length > 0) {
+                // Tenta liberar o número anterior reservado pelo usuário (desconsiderando o número atual)
+                const numberToRelease = selectedNumbers.find(n => n !== number);
+                if (numberToRelease) {
+                    // Não precisa do await, pois a reserva atual é mais importante
+                    setNumberStatus(numberToRelease, 'AVAILABLE'); 
+                }
+            }
+
+            // 3. Reserva o novo número no Firestore
+            await setNumberStatus(number, newStatus);
+            
+            // 4. Atualiza o estado local (o onSnapshot já fará isso, mas para garantir a UI imediata)
+            selectedNumbers = [number]; 
+
+            // 5. Esconde o modal e atualiza a UI
+            hideContactModal();
+            updateUI(); // Chama updateUI para atualizar o botão do WhatsApp com o número correto.
+        }
+        
+        function setupModalListeners() {
+            // Cancelar
+            cancelReservationBtn.addEventListener('click', hideContactModal);
+            
+            // Submeter
+            reservationForm.addEventListener('submit', handleReservationSubmit);
+        }
+        
+        
+        // --- 4. LÓGICA DE ADMINISTRAÇÃO APRIMORADA ---
+        
+        // Função para analisar o status reservado e extrair detalhes
+        function parseReservedStatus(status) {
+            if (!status || !status.startsWith(RESERVED_PREFIX)) {
+                return null;
+            }
+            // Expected format: RESERVED|userId|EncodedName|Phone
+            const parts = status.substring(RESERVED_PREFIX.length).split('|');
+            if (parts.length !== 3) {
+                return null; // Malformed
+            }
+            const [userIdSegment, encodedName, phone] = parts;
+            const name = decodeURIComponent(encodedName);
+            return {
+                userId: userIdSegment,
+                name: name,
+                phone: phone
+            };
+        }
         
         function renderAdminPanel() {
             // 1. Renderiza o controle de números participantes
@@ -477,7 +630,7 @@
             reservedList.innerHTML = '';
             
             const reservedKeys = Object.keys(reservedNumbers).filter(key => 
-                reservedNumbers[key].startsWith('RESERVED_') && 
+                reservedNumbers[key].startsWith(RESERVED_PREFIX) && 
                 parseInt(key, 10) <= activeCount // Apenas números dentro do range ativo
             );
             
@@ -487,14 +640,25 @@
             }
             
             reservedKeys.forEach(number => {
-                const status = reservedNumbers[number]; // Ex: RESERVED_USER_XYZ
-                const userIdSegment = status.replace('RESERVED_', '');
+                const status = reservedNumbers[number]; // Ex: RESERVED|userId|EncodedName|Phone
+                const reservationDetails = parseReservedStatus(status);
+
+                // Deve sempre existir se estiver na lista de reservedKeys
+                const displayName = reservationDetails ? reservationDetails.name : 'Nome Desconhecido';
+                const displayPhone = reservationDetails ? reservationDetails.phone : 'Telefone Não Registrado';
+                const displayID = reservationDetails ? `ID: ${reservationDetails.userId.substring(0, 8)}...` : '';
                 
                 const div = document.createElement('div');
                 div.className = 'flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-yellow-300';
                 div.innerHTML = `
                     <p class="font-bold text-lg text-gray-800">#${number}</p>
-                    <p class="text-xs text-gray-600 truncate mr-2">Reservado por: ${userIdSegment}</p>
+                    <div class="flex flex-col text-right">
+                        <span class="text-sm font-semibold">${displayName}</span>
+                        <a href="https://wa.me/${displayPhone}" target="_blank" class="text-xs text-blue-600 hover:underline">
+                             ${displayPhone}
+                        </a>
+                        <span class="text-xs text-gray-500">${displayID}</span>
+                    </div>
                     <div class="flex space-x-2">
                         <button data-number="${number}" data-action="confirm" class="bg-primary hover:bg-green-600 text-white text-xs font-semibold px-3 py-1 rounded-full transition duration-150">
                             Confirmar Venda
@@ -536,7 +700,7 @@
         }
 
 
-        // --- 4. LÓGICA DE COPIAR PIX (Mantida) ---
+        // --- 5. LÓGICA DE COPIAR PIX (Mantida) ---
 
         const PIX_CODE = document.getElementById('pix-code').value;
 
@@ -589,9 +753,9 @@
             if (adminDetails) {
                 adminDetails.style.display = 'none';
             }
+            setupModalListeners(); // Configura os listeners do modal
             initializeFirebase();
         });
     </script>
 </body>
-
 </html>
