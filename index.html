@@ -1,772 +1,218 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rifa Solidária: Prótese do Adriano</title>
-    <!-- Configurações PWA e Mobile -->
-    <meta name="theme-color" content="#10b981">
-    <link rel="manifest" href="data:application/json;base64,eyJpY29ucyI6W3sic2l6ZXMiOiIxOTJ4MTkyIiwiZm9ybWF0IjoiREUgMTkyeDE5MiJ9XX0=">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rifa Solidária - Adriano</title>
 
-        /* Estilo para número vendido */
-        .number-btn.sold {
-            background-color: #ef4444; /* Red 500 */
-            color: white;
-            cursor: not-allowed;
-            pointer-events: none;
-            opacity: 0.8;
-            text-decoration: line-through;
-        }
-        /* Estilo para número reservado por outro usuário */
-        .number-btn.reserved {
-            background-color: #facc15; /* Amber 400 (secondary) */
-            color: #78350f; /* Amber 900 */
-            cursor: not-allowed;
-            pointer-events: none;
-            opacity: 0.9;
-        }
-        /* Estilo para número selecionado pelo usuário atual */
-        .number-btn.selected {
-            background-color: #10b981; /* Primary (Emerald 500) */
-            color: white;
-            transform: scale(1.1);
-        }
-    </style>
-    <!-- Carrega o Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'primary': '#10b981', // Emerald Green
-                        'secondary': '#facc15', // Amber Yellow
-                    },
-                }
-            }
-        }
-    </script>
+<meta name="theme-color" content="#10b981">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '#10b981',
+        secondary: '#facc15'
+      }
+    }
+  }
+}
+</script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+body { font-family: 'Inter', sans-serif; }
+
+.number-btn.sold {
+  background:#ef4444;
+  color:#fff;
+  pointer-events:none;
+  text-decoration:line-through;
+}
+.number-btn.reserved {
+  background:#facc15;
+  color:#78350f;
+  pointer-events:none;
+}
+.number-btn.selected {
+  background:#10b981;
+  color:#fff;
+  transform:scale(1.1);
+}
+</style>
 </head>
+
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
 
-    <div class="w-full max-w-lg bg-white shadow-2xl rounded-xl overflow-hidden p-6 md:p-8">
+<div class="w-full max-w-lg bg-white shadow-2xl rounded-xl p-6">
 
-        <!-- HEADER DA CAMPANHA -->
-        <header class="text-center mb-6">
-            <h1 class="text-3xl font-extrabold text-primary mb-1">
-                Rifa Solidária - Adriano
-            </h1>
-            <p class="text-lg text-gray-700 font-semibold mb-3">
-                Ajude-o a conquistar sua independência!
-            </p>
-            <div class="bg-yellow-50 border border-yellow-300 p-3 rounded-lg">
-                <p class="text-sm font-medium text-gray-800">
-                    🏆 **Prêmio:** Um lindo **Bezerro** | 🎟️ **Valor:** R$ 20,00
-                </p>
-            </div>
-            <p class="text-xs mt-2 text-gray-500">
-                Meta: R$ 50.236,00 para a prótese de perna.
-            </p>
-        </header>
-        
-        <!-- PASSO 1: SELEÇÃO DE NÚMERO (COM FIREBASE) -->
-        <section class="mb-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">1. Escolha seu(s) Número(s)</h2>
-            
-            <p id="selection-status" class="text-center font-semibold text-primary mb-4 transition-all duration-300">
-                Carregando disponibilidade...
-            </p>
+<header class="text-center mb-6">
+  <h1 class="text-3xl font-extrabold text-primary">Rifa Solidária - Adriano</h1>
+  <p class="text-gray-700 font-semibold mt-2">Ajude-o a conquistar sua independência</p>
 
-            <!-- Grid de Números -->
-            <div id="numbers-grid" class="grid grid-cols-5 gap-2 max-h-64 overflow-y-auto p-2 bg-gray-100 rounded-lg border border-gray-200">
-                <!-- Os botões serão injetados pelo JS -->
-            </div>
-            <p class="text-xs text-gray-500 mt-3 text-center">
-                <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-1"></span> Vendido | 
-                <span class="inline-block w-3 h-3 bg-yellow-400 rounded-full mr-1"></span> Reservado | 
-                <span class="inline-block w-3 h-3 bg-white border border-gray-300 rounded-full mr-1"></span> Disponível
-            </p>
-        </section>
+  <div class="bg-yellow-50 border border-yellow-300 p-3 rounded-lg mt-4">
+    <p class="text-sm font-medium text-gray-800">
+      🏆 <strong>Prêmio:</strong> Um lindo <strong>Bezerro</strong> |
+      🎟️ <strong>Valor:</strong> R$ 20,00
+    </p>
+  </div>
+</header>
 
-        <!-- PASSO 2: PIX E PAGAMENTO -->
-        <section class="mb-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">2. Realize o Pagamento (R$ 20,00)</h2>
-            
-            <div class="bg-primary/10 border border-primary/50 p-4 rounded-lg">
-                <p class="font-medium text-gray-700 mb-2">Pix Copia e Cola:</p>
-                <div class="relative">
-                    <input type="text" id="pix-code" readonly 
-                           class="w-full p-2 text-sm bg-white rounded-md border border-gray-300 overflow-x-scroll font-mono text-gray-900" 
-                           value="00020126820014br.gov.bcb.pix01365215d5e9-d7a1-4326-b95d-bed5f0aa3d2e0220Rifa protese Adriano520400005303986540520.005802BR5920Aldir Dantas Martins6009Sao Paulo62290525REC694204560F00B56371524863041587">
-                    <button id="copy-pix-btn" class="absolute right-0 top-0 h-full bg-primary text-white p-2 rounded-r-md hover:bg-primary/90 transition duration-150 text-sm font-semibold">
-                        Copiar
-                    </button>
-                </div>
-                <p id="copy-message" class="text-sm text-green-600 mt-2 hidden">Copiado! Agora vá ao seu app do banco.</p>
-            </div>
-        </section>
+<section class="mb-6">
+<h2 class="font-bold mb-3">1. Escolha seu número</h2>
+<p id="selection-status" class="text-center text-primary font-semibold mb-3">Carregando...</p>
+<div id="numbers-grid" class="grid grid-cols-5 gap-2 bg-gray-100 p-2 rounded-lg max-h-64 overflow-y-auto"></div>
+</section>
 
-        <!-- PASSO 3: CONFIRMAÇÃO VIA WHATSAPP -->
-        <section class="mb-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">3. Confirme e Receba o Número</h2>
-            <p class="text-sm text-gray-600 mb-4">
-                Após realizar o Pix, clique no botão abaixo para enviar o comprovante e receber a confirmação do seu número da rifa.
-            </p>
-            
-            <button id="whatsapp-btn" class="w-full bg-green-500 text-white font-bold py-3 rounded-lg shadow-lg hover:bg-green-600 transition duration-150 flex items-center justify-center disabled:opacity-50" disabled>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-3" viewBox="0 0 24 24" fill="currentColor"><path d="M12.001 0C8.598 0 5.67 1.54 3.793 4.092l2.36 2.36A8.767 8.767 0 0112 3.23c2.93 0 5.602 1.348 7.397 3.522l2.36-2.36C19.33 1.54 16.402 0 12.001 0zm0 3.23C5.972 3.23 1.23 7.972 1.23 14s4.742 10.77 10.77 10.77 10.77-4.742 10.77-10.77S18.028 3.23 12.001 3.23zM12 22.38c-4.49 0-8.38-2.618-10.165-6.388l2.21-2.21C5.64 16.59 8.665 18.27 12 18.27c3.335 0 6.36-1.68 8.155-4.488l2.21 2.21c-1.785 3.77-5.675 6.388-10.165 6.388zM12 15.69c-2.07 0-3.75-1.68-3.75-3.75s1.68-3.75 3.75-3.75 3.75 1.68 3.75 3.75-1.68 3.75-3.75 3.75z"/></svg>
-                ENVIAR COMPROVANTE VIA WHATSAPP
-            </button>
-        </section>
-        
-        <!-- PAINEL DE ADMINISTRAÇÃO (APENAS PARA O VENDEDOR) -->
-        <section class="mt-8 pt-6 border-t border-gray-200">
-            <details>
-                <summary class="text-lg font-bold text-red-600 cursor-pointer">
-                    ⚙️ Painel de Gerenciamento (Apenas para Aldir)
-                </summary>
-                <div id="admin-panel" class="mt-4 p-4 bg-gray-100 rounded-lg">
-                    <div id="active-count-control">
-                        <!-- Controle de Números Participantes -->
-                    </div>
-                    
-                    <p class="text-sm font-semibold mb-2 mt-4 border-t pt-4 border-gray-300">Reservas Pendentes:</p>
-                    <div id="reserved-list" class="space-y-3">
-                        <!-- Conteúdo injetado pelo JS -->
-                        <p id="no-reservations" class="text-gray-500 text-sm">Nenhuma reserva ativa no momento.</p>
-                    </div>
-                </div>
-            </details>
-        </section>
+<section class="mb-6">
+<h2 class="font-bold mb-2">2. Pagamento PIX</h2>
+<input id="pix-code" readonly class="w-full p-2 border rounded text-xs"
+value="00020126820014br.gov.bcb.pix0136SUA_CHAVE_PIX_AQUI520400005303986540520.005802BR5920Aldir Dantas6009Sao Paulo6304XXXX">
+<button id="copy-pix-btn" class="mt-2 w-full bg-primary text-white py-2 rounded">Copiar PIX</button>
+<p id="copy-message" class="hidden text-green-600 text-sm mt-2 text-center">Pix copiado!</p>
+</section>
 
-    </div>
-    
-    <!-- MODAL DE COLETA DE DADOS -->
-    <div id="contact-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm transform transition-all duration-300 scale-95 opacity-0" id="modal-content">
-            <h3 class="text-xl font-bold text-primary mb-4">Confirme a Reserva do Número</h3>
-            <p class="text-sm text-gray-700 mb-4">Para reservar o número, precisamos do seu nome e telefone (WhatsApp) para contato e confirmação do Pix.</p>
-            
-            <form id="reservation-form">
-                <div class="mb-4">
-                    <label for="user-name" class="block text-sm font-medium text-gray-700">Seu Nome Completo</label>
-                    <input type="text" id="user-name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" required>
-                </div>
-                <div class="mb-6">
-                    <label for="user-phone" class="block text-sm font-medium text-gray-700">Telefone/WhatsApp (Ex: 11998765432)</label>
-                    <input type="tel" id="user-phone" pattern="[0-9]{11,15}" title="Insira um telefone válido com DDD (apenas números)" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary" required>
-                </div>
-                
-                <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancel-reservation-btn" class="px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition duration-150">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="px-4 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150">
-                        Reservar Agora
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+<section>
+<button id="whatsapp-btn" disabled
+class="w-full bg-green-500 text-white font-bold py-3 rounded-lg disabled:opacity-50">
+ENVIAR COMPROVANTE VIA WHATSAPP
+</button>
+</section>
 
+</div>
 
-    <script type="module">
-        // Importações do Firebase
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        // setLogLevel('Debug'); // Ativar logs de debug (opcional)
+<!-- MODAL -->
+<div id="contact-modal" class="fixed inset-0 bg-black/70 hidden flex items-center justify-center">
+<div class="bg-white p-6 rounded-lg w-full max-w-sm">
+<h3 class="font-bold text-primary mb-4">Reservar Número</h3>
 
-        // Variáveis de Configuração
-        const WHATSAPP_NUMBER = "5511999999999"; // SUBSTITUA PELO SEU NÚMERO
-        const TOTAL_NUMBERS = 100; // Número máximo de rifas (fixo)
-        
-        // Constantes do Firebase
-        const FIREBASE_COLLECTION_PATH = "rifa_adriano_status";
-        const FIREBASE_DOC_ID = "current_numbers";
-        const TOTAL_PARTICIPATING_KEY = '_total_participating'; // Chave meta para o total de números ativos
-        // ID de administrador (para liberar o painel) - Para o Aldir
-        const ADMIN_USER_ID_KEY = 'admin_user_id';
-        
-        // Novo status prefixo para identificar e armazenar o nome/telefone
-        const RESERVED_PREFIX = 'RESERVED|';
+<form id="reservation-form">
+<input id="user-name" required placeholder="Nome completo"
+class="w-full border p-2 rounded mb-3">
+<input id="user-phone" required placeholder="WhatsApp com DDD"
+class="w-full border p-2 rounded mb-4">
 
-        // --- MANUSEIO ROBUSTO DA CONFIGURAÇÃO DO FIREBASE ---
-        // Variáveis globais do Firebase (fornecidas pelo ambiente)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+<div class="flex gap-2">
+<button type="button" id="cancel-reservation-btn"
+class="flex-1 bg-gray-300 py-2 rounded">Cancelar</button>
+<button class="flex-1 bg-primary text-white py-2 rounded">Reservar</button>
+</div>
+</form>
+</div>
+</div>
 
-        let firebaseConfig = null;
-        try {
-            if (typeof __firebase_config !== 'undefined' && __firebase_config && __firebase_config.trim() !== '') {
-                // Assume que é uma string JSON válida
-                firebaseConfig = JSON.parse(__firebase_config);
-            } else {
-                console.error("ERRO CRÍTICO: Variável __firebase_config está ausente ou vazia.");
-            }
-        } catch (e) {
-            console.error("ERRO CRÍTICO: Falha ao parsear JSON da configuração do Firebase. Valor recebido:", __firebase_config, "Erro:", e);
-        }
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; 
-        
-        // Elementos DOM
-        const numbersGrid = document.getElementById('numbers-grid');
-        const selectionStatus = document.getElementById('selection-status');
-        const whatsappBtn = document.getElementById('whatsapp-btn');
-        const copyPixBtn = document.getElementById('copy-pix-btn');
-        const copyMessage = document.getElementById('copy-message');
-        const adminPanel = document.getElementById('admin-panel');
-        const reservedList = document.getElementById('reserved-list');
-        const noReservations = document.getElementById('no-reservations');
-        const activeCountControl = document.getElementById('active-count-control');
+/* 🔴 TROQUE PELOS DADOS DO SEU FIREBASE */
+const firebaseConfig = {
+    apiKey: "AIzaSyA2f_ZkqJPPa4b4GK3sc0tyyRxJGUlgbfk",
+    authDomain: "rifa-adriano.firebaseapp.com",
+    projectId: "rifa-adriano",
+    storageBucket: "rifa-adriano.firebasestorage.app",
+    messagingSenderId: "504508820150",
+    appId: "1:504508820150:web:fca6caa4f89ea133451417"
+  };
 
-        // NOVOS ELEMENTOS DO MODAL
-        const contactModal = document.getElementById('contact-modal');
-        const modalContent = document.getElementById('modal-content');
-        const reservationForm = document.getElementById('reservation-form');
-        const userNameInput = document.getElementById('user-name');
-        const userPhoneInput = document.getElementById('user-phone');
-        const cancelReservationBtn = document.getElementById('cancel-reservation-btn');
+const WHATSAPP_NUMBER = "5511999999999";
+const TOTAL_NUMBERS = 100;
+const COLLECTION = "rifa_adriano_status";
+const DOC_ID = "current";
+const RESERVED_PREFIX = "RESERVED|";
 
+const numbersGrid = document.getElementById("numbers-grid");
+const selectionStatus = document.getElementById("selection-status");
+const whatsappBtn = document.getElementById("whatsapp-btn");
+const modal = document.getElementById("contact-modal");
 
-        // Estado Local
-        let db, auth;
-        let userId = null;
-        let isAdmin = false; // Flag de controle
-        let isAuthReady = false;
-        let reservedNumbers = {}; // { '01': 'SOLD', '02': 'RESERVED|ID|NOME|TEL' }
-        let selectedNumbers = []; // Número selecionado pelo usuário atual
-        let activeCount = TOTAL_NUMBERS; // Novo estado: total de números ativos/participantes
-        let currentNumberToReserve = null; // Estado para o número clicado
+let db, auth, userId;
+let reservedNumbers = {};
+let selectedNumber = null;
 
-        // --- 1. FUNÇÕES DO FIREBASE ---
+const app = initializeApp(firebaseConfig);
+auth = getAuth(app);
+db = getFirestore(app);
 
-        async function initializeFirebase() {
-            // Se firebaseConfig for null após as checagens robustas, exibe a mensagem de erro.
-            if (!firebaseConfig) {
-                selectionStatus.textContent = "Erro: Configuração do App indisponível (Tente recarregar).";
-                return;
-            }
-            
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                // setLogLevel('Debug'); // Ativar logs de debug (opcional)
+signInAnonymously(auth);
 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        isAuthReady = true;
-                        checkAdminStatus(userId); // Verifica se é Aldir
-                        startRealtimeListener();
-                    } else {
-                        // Tenta login com token ou anônimo
-                        try {
-                            if (initialAuthToken) {
-                                await signInWithCustomToken(auth, initialAuthToken);
-                            } else {
-                                await signInAnonymously(auth);
-                            }
-                        } catch (error) {
-                            console.error("Erro na autenticação:", error);
-                            selectionStatus.textContent = "Erro ao autenticar. Tente novamente.";
-                        }
-                    }
-                });
-            } catch (error) {
-                console.error("Erro ao inicializar Firebase (initializeApp):", error);
-                selectionStatus.textContent = "Erro de conexão. Tente recarregar.";
-            }
-        }
-        
-        // Função para definir o primeiro usuário logado como administrador (Aldir)
-        function checkAdminStatus(currentUserId) {
-            const adminId = localStorage.getItem(ADMIN_USER_ID_KEY);
-            if (!adminId) {
-                // Se não há admin, o usuário atual é o primeiro.
-                localStorage.setItem(ADMIN_USER_ID_KEY, currentUserId);
-                isAdmin = true;
-                adminPanel.closest('details').style.display = 'block';
-                console.log("Você é o administrador (Aldir). Painel ativado.");
-            } else if (adminId === currentUserId) {
-                isAdmin = true;
-                adminPanel.closest('details').style.display = 'block';
-                console.log("Você é o administrador (Aldir). Painel ativado.");
-            } else {
-                isAdmin = false;
-                adminPanel.closest('details').style.display = 'none'; // Esconde o painel para clientes
-            }
-        }
+onAuthStateChanged(auth, user => {
+  if (!user) return;
+  userId = user.uid;
+  startListener();
+});
 
+function getDocRef() {
+  return doc(db, COLLECTION, DOC_ID);
+}
 
-        function getStatusDocRef() {
-            // Caminho para dados públicos: /artifacts/{appId}/public/data/{collection_name}/{documentId}
-            return doc(db, 'artifacts', appId, 'public', 'data', FIREBASE_COLLECTION_PATH, FIREBASE_DOC_ID);
-        }
+function startListener() {
+  onSnapshot(getDocRef(), snap => {
+    if (!snap.exists()) {
+      const init = {};
+      for (let i = 1; i <= TOTAL_NUMBERS; i++) {
+        init[String(i).padStart(2,"0")] = "AVAILABLE";
+      }
+      setDoc(getDocRef(), init);
+      return;
+    }
+    reservedNumbers = snap.data();
+    renderGrid();
+  });
+}
 
-        function startRealtimeListener() {
-            if (!isAuthReady || !db) return;
+function renderGrid() {
+  numbersGrid.innerHTML = "";
+  for (let i = 1; i <= TOTAL_NUMBERS; i++) {
+    const n = String(i).padStart(2,"0");
+    const status = reservedNumbers[n];
+    let cls = "number-btn p-2 border rounded font-semibold ";
 
-            const docRef = getStatusDocRef();
-            
-            onSnapshot(docRef, (docSnapshot) => {
-                if (docSnapshot.exists()) {
-                    const data = docSnapshot.data();
-                    
-                    // 1. Extrai o número de participantes ativos
-                    activeCount = data[TOTAL_PARTICIPATING_KEY] || TOTAL_NUMBERS;
-                    
-                    // 2. Clona os dados, removendo a chave meta
-                    reservedNumbers = { ...data };
-                    delete reservedNumbers[TOTAL_PARTICIPATING_KEY]; 
+    if (status === "SOLD") cls += "sold";
+    else if (status?.startsWith(RESERVED_PREFIX)) cls += "reserved";
+    else cls += "bg-white hover:bg-secondary cursor-pointer";
 
-                    renderNumbersGrid();
-                    selectionStatus.textContent = "Selecione seu número abaixo.";
-                    if (isAdmin) {
-                        renderAdminPanel();
-                    }
-                } else {
-                    // Inicializa o documento se não existir
-                    const initialData = {};
-                    for (let i = 1; i <= TOTAL_NUMBERS; i++) {
-                        initialData[String(i).padStart(2, '0')] = 'AVAILABLE';
-                    }
-                    initialData[TOTAL_PARTICIPATING_KEY] = TOTAL_NUMBERS; // Adiciona o campo meta
+    const btn = document.createElement("button");
+    btn.textContent = n;
+    btn.className = cls;
+    btn.onclick = () => openModal(n);
+    numbersGrid.appendChild(btn);
+  }
+}
 
-                    setDoc(docRef, initialData)
-                        .then(() => console.log("Documento inicial de status criado."))
-                        .catch(e => console.error("Erro ao criar doc inicial:", e));
-                        
-                    reservedNumbers = initialData;
-                    delete reservedNumbers[TOTAL_PARTICIPATING_KEY]; 
-                    activeCount = TOTAL_NUMBERS;
+function openModal(n) {
+  selectedNumber = n;
+  modal.classList.remove("hidden");
+}
 
-                    renderNumbersGrid();
-                }
-            }, (error) => {
-                console.error("Erro ao ouvir o status da rifa:", error);
-                selectionStatus.textContent = "Erro ao carregar status da rifa.";
-            });
-        }
-        
-        // Função para atualizar o status de um número individual (usado por cliente e admin)
-        async function setNumberStatus(number, status) {
-            if (!db || !userId) return;
+document.getElementById("cancel-reservation-btn").onclick = () => {
+  modal.classList.add("hidden");
+};
 
-            const fieldKey = String(number).padStart(2, '0');
-            const newStatus = {};
-            newStatus[fieldKey] = status;
+document.getElementById("reservation-form").onsubmit = async e => {
+  e.preventDefault();
+  const name = userName.value.trim();
+  const phone = userPhone.value.replace(/\D/g,"");
 
-            try {
-                await updateDoc(getStatusDocRef(), newStatus);
-                // O onSnapshot irá atualizar a UI automaticamente
-            } catch (e) {
-                console.error("Erro ao atualizar status:", e);
-                // Tratamento de erro de permissão (apenas log)
-            }
-        }
+  const status = `${RESERVED_PREFIX}${userId}|${encodeURIComponent(name)}|${phone}`;
+  await updateDoc(getDocRef(), { [selectedNumber]: status });
 
-        // Função para atualizar o número total de participantes (usado apenas por admin)
-        async function updateActiveCount(newCount) {
-            if (!db || !isAdmin) return;
-            
-            newCount = parseInt(newCount, 10);
-            if (isNaN(newCount) || newCount < 1 || newCount > TOTAL_NUMBERS) {
-                console.error(`Valor inválido para contagem ativa: ${newCount}`);
-                return;
-            }
+  modal.classList.add("hidden");
+  whatsappBtn.disabled = false;
 
-            const updateData = {};
-            updateData[TOTAL_PARTICIPATING_KEY] = newCount;
+  whatsappBtn.onclick = () => {
+    const msg = `Olá, sou ${name} (${phone}). Fiz o Pix e reservei o número ${selectedNumber}.`;
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`);
+  };
+};
 
-            try {
-                await updateDoc(getStatusDocRef(), updateData);
-                console.log(`Total de números participantes alterado para: ${newCount}`);
-                // O onSnapshot cuidará da atualização da UI.
-            } catch (e) {
-                console.error("Erro ao atualizar o total de participantes:", e);
-            }
-        }
-        
-        // --- 2. GERAÇÃO E LÓGICA DA UI DE CLIENTES ---
-
-        function renderNumbersGrid() {
-            numbersGrid.innerHTML = '';
-            let html = '';
-            // Itera apenas até a contagem ativa
-            for (let i = 1; i <= activeCount; i++) {
-                const number = String(i).padStart(2, '0');
-                const status = reservedNumbers[number] || 'AVAILABLE';
-                
-                let classes = 'number-btn bg-white text-gray-700 border border-gray-300 p-2 rounded-lg font-semibold transition duration-150';
-                let isReservedByCurrentUser = status.startsWith(RESERVED_PREFIX) && status.includes(`|${userId}|`);
-                
-                if (status === 'SOLD') {
-                    classes += ' sold';
-                } else if (status.startsWith(RESERVED_PREFIX) && !isReservedByCurrentUser) {
-                    // Reservado por outro usuário (novo formato)
-                    classes += ' reserved';
-                } else if (isReservedByCurrentUser || selectedNumbers.includes(number)) {
-                    // Reservado ou selecionado pelo usuário atual
-                    classes += ' selected bg-primary text-white scale-110';
-                } else {
-                    classes += ' hover:bg-secondary/50 cursor-pointer';
-                }
-
-                html += `<button data-number="${number}" class="${classes}">${number}</button>`;
-            }
-            numbersGrid.innerHTML = html;
-            addNumberListeners();
-            updateUI();
-        }
-
-        function handleNumberClick(event) {
-            const btn = event.target;
-            const number = btn.dataset.number;
-            const status = reservedNumbers[number] || 'AVAILABLE';
-
-            // Verifica se está reservado por outro
-            if (status !== 'AVAILABLE' && !status.includes(`|${userId}|`)) {
-                selectionStatus.textContent = `Número ${number} está ${status === 'SOLD' ? 'VENDIDO' : 'RESERVADO'}. Escolha outro.`;
-                return;
-            }
-
-            // Lógica de Desseleção
-            if (selectedNumbers.includes(number)) {
-                // Desseleciona (e remove a reserva do Firestore)
-                selectedNumbers = [];
-                setNumberStatus(number, 'AVAILABLE');
-            } else {
-                // Se disponível, abre o modal para coletar nome/telefone
-                showContactModal(number);
-            }
-        }
-
-        function updateUI() {
-            if (selectedNumbers.length > 0) {
-                selectionStatus.textContent = `Número escolhido: ${selectedNumbers.join(', ')}. PROSSIGA ABAIXO.`;
-                whatsappBtn.disabled = false;
-            } else {
-                selectionStatus.textContent = `Selecione seu número abaixo.`;
-                whatsappBtn.disabled = true;
-            }
-            
-            // Atualiza o link do WhatsApp
-            const message = buildWhatsAppMessage();
-            whatsappBtn.onclick = () => {
-                window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`, '_blank');
-            };
-        }
-
-        function buildWhatsAppMessage() {
-            // Tenta obter os detalhes de contato do número selecionado para personalizar a mensagem
-            let contactName = 'Cliente';
-            let contactPhone = 'Não Informado';
-
-            if (selectedNumbers.length > 0) {
-                const number = selectedNumbers[0];
-                const status = reservedNumbers[number];
-                const details = parseReservedStatus(status);
-                if (details) {
-                    contactName = details.name;
-                    contactPhone = details.phone;
-                }
-            }
-            
-            let message = `Olá Aldir, eu sou o(a) ${contactName} (${contactPhone}). Acabei de fazer o Pix de R$ 20,00 para a rifa do Adriano.\n\n`;
-            message += "Eu gostaria de confirmar o número: ";
-            
-            if (selectedNumbers.length > 0) {
-                message += selectedNumbers.join(', ');
-            } else {
-                message += "(Nenhum número reservado no momento)";
-            }
-            
-            message += `\n\nEnviei o comprovante. Aguardo a confirmação! 😊`;
-            return message;
-        }
-
-        function addNumberListeners() {
-            document.querySelectorAll('.number-btn').forEach(btn => {
-                btn.removeEventListener('click', handleNumberClick); // Remove duplicidade
-                btn.addEventListener('click', handleNumberClick);
-            });
-        }
-        
-        // --- 3. LÓGICA DO MODAL ---
-        
-        function showContactModal(number) {
-            currentNumberToReserve = number;
-            
-            const title = modalContent.querySelector('h3');
-            if (title) {
-                title.textContent = `Confirme a Reserva do Número #${number}`;
-            }
-
-            // Pre-preenche se o usuário já tiver reservado algo antes
-            if (selectedNumbers.length > 0) {
-                 const details = parseReservedStatus(reservedNumbers[selectedNumbers[0]]);
-                 if(details) {
-                     userNameInput.value = details.name;
-                     userPhoneInput.value = details.phone;
-                 }
-            } else {
-                // Limpa o formulário se for a primeira vez
-                reservationForm.reset();
-            }
-
-            contactModal.classList.remove('hidden');
-            // Animação de entrada
-            setTimeout(() => {
-                modalContent.classList.remove('scale-95', 'opacity-0');
-                modalContent.classList.add('scale-100', 'opacity-100');
-            }, 10);
-            userNameInput.focus();
-        }
-
-        function hideContactModal() {
-            // Animação de saída
-            modalContent.classList.remove('scale-100', 'opacity-100');
-            modalContent.classList.add('scale-95', 'opacity-0');
-            
-            setTimeout(() => {
-                contactModal.classList.add('hidden');
-                currentNumberToReserve = null;
-                // Não reseta o formulário aqui, pois podemos querer usar os dados para o próximo número
-            }, 300); // Tempo da transição CSS
-        }
-
-        async function handleReservationSubmit(e) {
-            e.preventDefault();
-            
-            const number = currentNumberToReserve;
-            const name = userNameInput.value.trim();
-            // Remove espaços, traços, etc., deixando apenas números
-            const phone = userPhoneInput.value.replace(/\D/g, '').trim(); 
-            
-            if (!number || !name || phone.length < 10) {
-                selectionStatus.textContent = "Erro: Por favor, preencha o nome e um telefone válido com DDD.";
-                return;
-            }
-
-            // 1. Monta o novo status com as informações do cliente
-            // Formato: RESERVED|USER_ID|NOME_URL_ENCODED|TELEFONE
-            const encodedName = encodeURIComponent(name);
-            const newStatus = `${RESERVED_PREFIX}${userId}|${encodedName}|${phone}`;
-
-            // 2. Limpa seleção anterior (se houver) e libera reserva anterior
-            if (selectedNumbers.length > 0) {
-                // Tenta liberar o número anterior reservado pelo usuário (desconsiderando o número atual)
-                const numberToRelease = selectedNumbers.find(n => n !== number);
-                if (numberToRelease) {
-                    // Não precisa do await, pois a reserva atual é mais importante
-                    setNumberStatus(numberToRelease, 'AVAILABLE'); 
-                }
-            }
-
-            // 3. Reserva o novo número no Firestore
-            await setNumberStatus(number, newStatus);
-            
-            // 4. Atualiza o estado local (o onSnapshot já fará isso, mas para garantir a UI imediata)
-            selectedNumbers = [number]; 
-
-            // 5. Esconde o modal e atualiza a UI
-            hideContactModal();
-            updateUI(); // Chama updateUI para atualizar o botão do WhatsApp com o número correto.
-        }
-        
-        function setupModalListeners() {
-            // Cancelar
-            cancelReservationBtn.addEventListener('click', hideContactModal);
-            
-            // Submeter
-            reservationForm.addEventListener('submit', handleReservationSubmit);
-        }
-        
-        
-        // --- 4. LÓGICA DE ADMINISTRAÇÃO APRIMORADA ---
-        
-        // Função para analisar o status reservado e extrair detalhes
-        function parseReservedStatus(status) {
-            if (!status || !status.startsWith(RESERVED_PREFIX)) {
-                return null;
-            }
-            // Expected format: RESERVED|userId|EncodedName|Phone
-            const parts = status.substring(RESERVED_PREFIX.length).split('|');
-            if (parts.length !== 3) {
-                return null; // Malformed
-            }
-            const [userIdSegment, encodedName, phone] = parts;
-            const name = decodeURIComponent(encodedName);
-            return {
-                userId: userIdSegment,
-                name: name,
-                phone: phone
-            };
-        }
-        
-        function renderAdminPanel() {
-            // 1. Renderiza o controle de números participantes
-            activeCountControl.innerHTML = `
-                <label for="active-count-input" class="block text-sm font-medium text-gray-700">
-                    Total de Números Participantes (1 - ${TOTAL_NUMBERS}):
-                </label>
-                <div class="flex mt-1">
-                    <input type="number" id="active-count-input" min="1" max="${TOTAL_NUMBERS}" value="${activeCount}" class="flex-grow p-2 border border-gray-300 rounded-l-md" />
-                    <button id="set-active-count-btn" class="bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3 py-1 rounded-r-md transition duration-150">
-                        Aplicar
-                    </button>
-                </div>
-            `;
-            
-            const setActiveCountBtn = document.getElementById('set-active-count-btn');
-            const activeCountInput = document.getElementById('active-count-input');
-            
-            setActiveCountBtn.addEventListener('click', () => {
-                const newCount = activeCountInput.value;
-                // Alerta personalizado, pois alert() não é permitido
-                if (!window.confirm(`Tem certeza que deseja alterar o total de números participantes para ${newCount}? Isso afetará o grid de rifas.`)) {
-                     activeCountInput.value = activeCount; // Volta ao valor anterior
-                     return;
-                }
-                updateActiveCount(newCount);
-            });
-            
-            // 2. Renderiza a lista de reservas pendentes
-            reservedList.innerHTML = '';
-            
-            const reservedKeys = Object.keys(reservedNumbers).filter(key => 
-                reservedNumbers[key].startsWith(RESERVED_PREFIX) && 
-                parseInt(key, 10) <= activeCount // Apenas números dentro do range ativo
-            );
-            
-            if (reservedKeys.length === 0) {
-                reservedList.innerHTML = `<p class="text-gray-500 text-sm" id="no-reservations">Nenhuma reserva ativa no momento.</p>`;
-                return;
-            }
-            
-            reservedKeys.forEach(number => {
-                const status = reservedNumbers[number]; // Ex: RESERVED|userId|EncodedName|Phone
-                const reservationDetails = parseReservedStatus(status);
-
-                // Deve sempre existir se estiver na lista de reservedKeys
-                const displayName = reservationDetails ? reservationDetails.name : 'Nome Desconhecido';
-                const displayPhone = reservationDetails ? reservationDetails.phone : 'Telefone Não Registrado';
-                const displayID = reservationDetails ? `ID: ${reservationDetails.userId.substring(0, 8)}...` : '';
-                
-                const div = document.createElement('div');
-                div.className = 'flex justify-between items-center bg-white p-3 rounded-lg shadow-sm border border-yellow-300';
-                div.innerHTML = `
-                    <p class="font-bold text-lg text-gray-800">#${number}</p>
-                    <div class="flex flex-col text-right">
-                        <span class="text-sm font-semibold">${displayName}</span>
-                        <a href="https://wa.me/${displayPhone}" target="_blank" class="text-xs text-blue-600 hover:underline">
-                             ${displayPhone}
-                        </a>
-                        <span class="text-xs text-gray-500">${displayID}</span>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button data-number="${number}" data-action="confirm" class="bg-primary hover:bg-green-600 text-white text-xs font-semibold px-3 py-1 rounded-full transition duration-150">
-                            Confirmar Venda
-                        </button>
-                        <button data-number="${number}" data-action="release" class="bg-gray-400 hover:bg-gray-500 text-white text-xs font-semibold px-3 py-1 rounded-full transition duration-150">
-                            Liberar
-                        </button>
-                    </div>
-                `;
-                reservedList.appendChild(div);
-            });
-            
-            addAdminListeners();
-        }
-        
-        function addAdminListeners() {
-            document.querySelectorAll('#admin-panel button[data-action]').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const number = e.target.dataset.number;
-                    const action = e.target.dataset.action;
-                    
-                    // Substitui confirm() por window.confirm() para melhor compatibilidade
-                    if (!window.confirm(`Tem certeza que deseja ${action === 'confirm' ? 'CONFIRMAR a VENDA do número' : 'LIBERAR o número'} #${number}?`)) {
-                        return;
-                    }
-
-                    if (action === 'confirm') {
-                        // Confirma venda (bloqueio permanente)
-                        setNumberStatus(number, 'SOLD');
-                        // Substitui alert() por log e mensagem na UI se necessário, mas mantemos o log
-                        console.log(`Número #${number} marcado como VENDIDO.`);
-                    } else if (action === 'release') {
-                        // Libera (volta para disponível)
-                        setNumberStatus(number, 'AVAILABLE');
-                        console.log(`Número #${number} liberado e agora está DISPONÍVEL.`);
-                    }
-                });
-            });
-        }
-
-
-        // --- 5. LÓGICA DE COPIAR PIX (Mantida) ---
-
-        const PIX_CODE = document.getElementById('pix-code').value;
-
-        copyPixBtn.addEventListener('click', () => {
-            const pixInput = document.getElementById('pix-code');
-            
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(pixInput.value).then(() => {
-                    showCopySuccess();
-                }).catch(err => {
-                    fallbackCopyTextToClipboard(pixInput.value);
-                });
-            } else {
-                fallbackCopyTextToClipboard(pixInput.value);
-            }
-        });
-        
-        function fallbackCopyTextToClipboard(text) {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.opacity = "0";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-
-            try {
-                document.execCommand('copy');
-                showCopySuccess();
-            } catch (err) {
-                console.error('Falha ao copiar:', err);
-            }
-
-            document.body.removeChild(textArea);
-        }
-        
-        function showCopySuccess() {
-            copyMessage.classList.remove('hidden');
-            copyPixBtn.textContent = 'Copiado!';
-            setTimeout(() => {
-                copyMessage.classList.add('hidden');
-                copyPixBtn.textContent = 'Copiar';
-            }, 3000);
-        }
-
-        // Inicialização
-        document.addEventListener('DOMContentLoaded', () => {
-            // Inicialmente esconde o painel até confirmar que é o admin
-            const adminDetails = document.querySelector('section.mt-8 details');
-            if (adminDetails) {
-                adminDetails.style.display = 'none';
-            }
-            setupModalListeners(); // Configura os listeners do modal
-            initializeFirebase();
-        });
-    </script>
+document.getElementById("copy-pix-btn").onclick = () => {
+  navigator.clipboard.writeText(document.getElementById("pix-code").value);
+  document.getElementById("copy-message").classList.remove("hidden");
+};
+</script>
 </body>
-    </html>
+</html>
